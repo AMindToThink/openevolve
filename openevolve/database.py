@@ -192,6 +192,7 @@ class ProgramDatabase:
             # Log significant MAP-Elites events
             coords_dict = {self.config.feature_dimensions[i]: feature_coords[i] for i in range(len(feature_coords))}
             
+            replaced_program_id = None
             if feature_key not in self.feature_map:
                 # New cell occupation
                 logger.info("New MAP-Elites cell occupied: %s", coords_dict)
@@ -210,8 +211,14 @@ class ProgramDatabase:
                     existing_fitness = safe_numeric_average(existing_program.metrics)
                     logger.info("MAP-Elites cell improved: %s (fitness: %.3f -> %.3f)", 
                                coords_dict, existing_fitness, new_fitness)
+                    replaced_program_id = existing_program_id
             
+            # Update the feature map with the new program
             self.feature_map[feature_key] = program.id
+            
+            # Remove the replaced program from the database (if it exists and isn't the best program)
+            if replaced_program_id and replaced_program_id != self.best_program_id:
+                self._remove_program_from_database(replaced_program_id)
 
         # Add to specific island (not random!)
         island_idx = target_island if target_island is not None else self.current_island
@@ -1193,6 +1200,11 @@ class ProgramDatabase:
     def _enforce_population_limit(self, exclude_program_id: Optional[str] = None) -> None:
         """
         Enforce the population size limit by removing worst programs if needed
+        
+        This method respects the MAP-Elites algorithm by:
+        1. Prioritizing removal of non-elite programs (not in feature_map)
+        2. Only removing elite programs if absolutely necessary
+        3. Preserving diversity by keeping the best program in each feature cell
 
         Args:
             exclude_program_id: Program ID to never remove (e.g., newly added program)
@@ -1206,62 +1218,54 @@ class ProgramDatabase:
         logger.info(
             f"Population size ({len(self.programs)}) exceeds limit ({self.config.population_size}), removing {num_to_remove} programs"
         )
+        
+        # Log MAP-Elites grid occupancy for debugging
+        total_possible_cells = self.feature_bins ** len(self.config.feature_dimensions)
+        grid_occupancy = len(self.feature_map) / total_possible_cells
+        logger.info(f"MAP-Elites grid occupancy: {len(self.feature_map)}/{total_possible_cells} ({grid_occupancy:.1%})")
 
-        # Get programs sorted by fitness (worst first)
+        # Identify programs that are in the feature map (elite programs)
+        feature_map_program_ids = set(self.feature_map.values())
+        
+        # Get all programs and split into elite and non-elite
         all_programs = list(self.programs.values())
+        elite_programs = [p for p in all_programs if p.id in feature_map_program_ids]
+        non_elite_programs = [p for p in all_programs if p.id not in feature_map_program_ids]
+        
+        # Sort programs by fitness (worst first)
+        non_elite_programs.sort(key=lambda p: safe_numeric_average(p.metrics))
+        elite_programs.sort(key=lambda p: safe_numeric_average(p.metrics))
 
-        # Sort by average metric (worst first)
-        sorted_programs = sorted(
-            all_programs,
-            key=lambda p: safe_numeric_average(p.metrics),
-        )
-
-        # Remove worst programs, but never remove the best program or excluded program
-        programs_to_remove = []
+        # Protected programs that should never be removed
         protected_ids = {self.best_program_id, exclude_program_id} - {None}
-
-        for program in sorted_programs:
+        
+        programs_to_remove = []
+        
+        # Phase 1: Remove non-elite programs first (safe to remove)
+        logger.debug(f"Phase 1: Removing non-elite programs (safe to remove)")
+        for program in non_elite_programs:
             if len(programs_to_remove) >= num_to_remove:
                 break
-            # Don't remove the best program or excluded program
             if program.id not in protected_ids:
                 programs_to_remove.append(program)
-
-        # If we still need to remove more and only have protected programs,
-        # remove from the remaining programs anyway (but keep the protected ones)
+                logger.debug(f"Marked non-elite program {program.id} for removal")
+        
+        # Phase 2: If we still need to remove more, remove worst elite programs
+        # This should be rare and only happens when population is very small
         if len(programs_to_remove) < num_to_remove:
-            remaining_programs = [
-                p
-                for p in sorted_programs
-                if p not in programs_to_remove and p.id not in protected_ids
-            ]
-            additional_removals = remaining_programs[: num_to_remove - len(programs_to_remove)]
-            programs_to_remove.extend(additional_removals)
+            remaining_to_remove = num_to_remove - len(programs_to_remove)
+            logger.info(f"Phase 2: Need to remove {remaining_to_remove} elite programs (may reduce diversity)")
+            
+            for program in elite_programs:
+                if len(programs_to_remove) >= num_to_remove:
+                    break
+                if program.id not in protected_ids:
+                    programs_to_remove.append(program)
+                    logger.info(f"Marked elite program {program.id} for removal (reducing diversity)")
 
-        # Remove the selected programs
+        # Remove the selected programs using the dedicated method
         for program in programs_to_remove:
-            program_id = program.id
-
-            # Remove from main programs dict
-            if program_id in self.programs:
-                del self.programs[program_id]
-
-            # Remove from feature map
-            keys_to_remove = []
-            for key, pid in self.feature_map.items():
-                if pid == program_id:
-                    keys_to_remove.append(key)
-            for key in keys_to_remove:
-                del self.feature_map[key]
-
-            # Remove from islands
-            for island in self.islands:
-                island.discard(program_id)
-
-            # Remove from archive
-            self.archive.discard(program_id)
-
-            logger.debug(f"Removed program {program_id} due to population limit")
+            self._remove_program_from_database(program.id)
 
         logger.info(f"Population size after cleanup: {len(self.programs)}")
         
@@ -1714,6 +1718,49 @@ class ProgramDatabase:
             logger.warning(f"Failed to list artifact directory {artifact_dir}: {e}")
 
         return artifacts
+        
+    def _remove_program_from_database(self, program_id: str) -> None:
+        """
+        Remove a program from all database structures
+        
+        This method provides a clean way to remove a program from:
+        - Main programs dictionary
+        - Feature map
+        - Islands
+        - Archive
+        - Island best programs references
+        
+        Args:
+            program_id: ID of the program to remove
+        """
+        if program_id not in self.programs:
+            logger.debug(f"Program {program_id} not found in database, skipping removal")
+            return
+        
+        # Remove from main programs dict
+        del self.programs[program_id]
+        
+        # Remove from feature map
+        keys_to_remove = []
+        for key, pid in self.feature_map.items():
+            if pid == program_id:
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del self.feature_map[key]
+        
+        # Remove from islands
+        for island in self.islands:
+            island.discard(program_id)
+        
+        # Remove from archive
+        self.archive.discard(program_id)
+        
+        # Remove from island best programs references
+        for i, best_id in enumerate(self.island_best_programs):
+            if best_id == program_id:
+                self.island_best_programs[i] = None
+        
+        logger.debug(f"Removed program {program_id} from all database structures")
 
     def log_prompt(
         self,
