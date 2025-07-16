@@ -650,9 +650,11 @@ class ProgramDatabase:
                 if len(self.programs) < 2:
                     bin_idx = 0
                 else:
-                    sample_programs = random.sample(
-                        list(self.programs.values()), min(5, len(self.programs))
-                    )
+                    # Use deterministic sampling for consistent feature coordinates
+                    all_programs = list(self.programs.values())
+                    # Sort by ID for deterministic ordering
+                    sorted_programs = sorted(all_programs, key=lambda p: p.id)
+                    sample_programs = sorted_programs[:min(5, len(sorted_programs))]
                     avg_diversity = sum(
                         self._fast_code_diversity(program.code, other.code)
                         for other in sample_programs
@@ -751,8 +753,9 @@ class ProgramDatabase:
             # Sample programs for calculating diversity range (limit to 5 for performance)
             sample_programs = list(self.programs.values())
             if len(sample_programs) > 5:
-                import random
-                sample_programs = random.sample(sample_programs, 5)
+                # Use deterministic sampling for consistent binning
+                sorted_programs = sorted(sample_programs, key=lambda p: p.id)
+                sample_programs = sorted_programs[:5]
             
             # Adaptive binning: use actual range from existing programs
             existing_diversities = [_fast_diversity(p, sample_programs) for p in self.programs.values()]
