@@ -5,7 +5,7 @@ log_level: "INFO"
 random_seed: null
 
 # Evolution settings
-diff_based_evolution: true
+diff_based_evolution: false
 max_code_length: 15000
 
 # LLM configuration
@@ -27,8 +27,8 @@ llm:
   api_key: null # Uses ANTHROPIC_API_KEY env variable
 
   # Generation parameters
-  temperature: 0.8
-  top_p: 0.95
+  temperature: 1.1
+  top_p: 0.9
   max_tokens: 4096
 
   # Request parameters
@@ -40,8 +40,8 @@ llm:
 prompt:
   system_message: "You are an expert quantitative finance researcher and algorithmic trading specialist. Your task is to evolve and improve stock trading strategies that maximize returns while minimizing risk (volatility). Focus on sophisticated techniques including: technical indicators (moving averages, RSI, MACD, Bollinger Bands), statistical arbitrage, mean reversion strategies, momentum strategies, risk management techniques, portfolio optimization, machine learning approaches for signal generation, and advanced statistical methods. Consider market microstructure, regime detection, volatility modeling, and risk-adjusted returns. The strategy will be evaluated on historical S&P 500 data with metrics including total returns, Sharpe ratio, maximum drawdown, and volatility. Aim for strategies that achieve high risk-adjusted returns with consistent performance across different market conditions."
   
-  num_top_programs: 4
-  num_diverse_programs: 3
+  num_top_programs: 2
+  num_diverse_programs: 5
   use_template_stochasticity: true
   
   # Advanced prompt features
@@ -62,13 +62,13 @@ database:
   num_islands: 4
   
   # Island evolution parameters
-  migration_interval: 25
-  migration_rate: 0.15
+  migration_interval: 15
+  migration_rate: 0.25
   
   # Selection parameters
-  elite_selection_ratio: 0.25
-  exploration_ratio: 0.35
-  exploitation_ratio: 0.40
+  elite_selection_ratio: 0.15
+  exploration_ratio: 0.50
+  exploitation_ratio: 0.35
   
   # Feature space for stock strategies
   feature_dimensions:
@@ -87,7 +87,7 @@ evaluator:
   
   # Cascade evaluation for efficiency
   cascade_evaluation: true
-  cascade_thresholds: [0.3, 0.6]
+  cascade_thresholds: [0.2, 0.4]
   
   # Parallel evaluations
   parallel_evaluations: 6
