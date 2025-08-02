@@ -69,10 +69,15 @@ def calculate_returns(prices):
 def backtest_strategy(prices, signals):
     """
     Backtest the trading strategy and calculate performance metrics.
+    
+    Standard pandas backtesting approach:
+    - Signals: 1=buy, -1=sell, 0=hold current position
+    - Position tracking: accumulate signals over time
+    - Returns: position * daily_returns
 
     Args:
         prices: Series of stock prices
-        signals: Series of trading signals
+        signals: Series of trading signals (1=buy, -1=sell, 0=hold)
 
     Returns:
         Dictionary with performance metrics
@@ -80,10 +85,26 @@ def backtest_strategy(prices, signals):
     # Calculate daily returns
     daily_returns = calculate_returns(prices)
 
-    # Calculate strategy returns (shift signals to avoid look-ahead bias)
-    strategy_returns = daily_returns * signals.shift(1)
-
-    # Remove NaN values
+    # Convert signals to positions using standard approach
+    # 1=buy (enter long), -1=sell (exit long), 0=hold current position
+    position = 0
+    positions = []
+    
+    for signal in signals:
+        if signal == 1:  # Buy signal - enter long position
+            position = 1
+        elif signal == -1:  # Sell signal - exit position
+            position = 0
+        # signal == 0 means hold current position (no change)
+        positions.append(position)
+    
+    positions = pd.Series(positions, index=signals.index)
+    
+    # Calculate strategy returns: position held during each period * daily return
+    # Shift positions to avoid look-ahead bias (use yesterday's position for today's return)
+    strategy_returns = daily_returns * positions.shift(1)
+    
+    # Remove NaN values (first day has no prior position)
     strategy_returns = strategy_returns.dropna()
 
     if len(strategy_returns) == 0:
