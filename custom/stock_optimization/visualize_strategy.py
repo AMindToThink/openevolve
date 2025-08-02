@@ -32,6 +32,11 @@ def extract_signals_from_strategy(program, stock_data):
         try:
             signals = program.run_stock_optimization(stock_data)
             if isinstance(signals, pd.Series):
+                # Validate signal length matches stock data
+                if len(signals) != len(stock_data):
+                    print(f"Warning: Signal length mismatch - got {len(signals)}, expected {len(stock_data)}")
+                    # Try to align signals with stock data index, filling missing with 0
+                    signals = signals.reindex(stock_data.index, fill_value=0)
                 return signals
         except Exception as e:
             print(f"Warning: run_stock_optimization failed: {e}")
@@ -41,6 +46,11 @@ def extract_signals_from_strategy(program, stock_data):
         try:
             signals = program.generate_signals(stock_data['Close'])
             if isinstance(signals, pd.Series):
+                # Validate signal length matches stock data
+                if len(signals) != len(stock_data):
+                    print(f"Warning: Signal length mismatch - got {len(signals)}, expected {len(stock_data)}")
+                    # Try to align signals with stock data index, filling missing with 0
+                    signals = signals.reindex(stock_data.index, fill_value=0)
                 return signals
         except Exception as e:
             print(f"Warning: generate_signals failed: {e}")
@@ -50,6 +60,11 @@ def extract_signals_from_strategy(program, stock_data):
         try:
             signals = program.optimize_strategy(stock_data['Close'])
             if isinstance(signals, pd.Series):
+                # Validate signal length matches stock data
+                if len(signals) != len(stock_data):
+                    print(f"Warning: Signal length mismatch - got {len(signals)}, expected {len(stock_data)}")
+                    # Try to align signals with stock data index, filling missing with 0
+                    signals = signals.reindex(stock_data.index, fill_value=0)
                 return signals
         except Exception as e:
             print(f"Warning: optimize_strategy failed: {e}")

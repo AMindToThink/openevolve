@@ -409,6 +409,31 @@ def evaluate(program_path):
                 result = EvaluationResult(metrics=metrics, artifacts=artifacts)
                 return result.to_dict()  # Return plain dict for OpenEvolve compatibility
 
+            # Validate signal length matches stock data length
+            if len(signals) != len(stock_data):
+                print(
+                    f"Error: Signal length ({len(signals)}) does not match stock data length ({len(stock_data)})"
+                )
+                metrics = {
+                    "return_score": 0.0,
+                    "volatility_score": 0.0,
+                    "sharpe_score": 0.0,
+                    "drawdown_score": 0.0,
+                    "combined_score": 0.0,
+                    "eval_time": float(eval_time),
+                }
+                artifacts = {
+                    "error": f"Signal length mismatch: got {len(signals)}, expected {len(stock_data)}",
+                    "error_type": "ValidationError",
+                    "stdout": execution_info.get("stdout", ""),
+                    "stderr": execution_info.get("stderr", ""),
+                    "signal_length": len(signals),
+                    "expected_length": len(stock_data),
+                }
+                # Create EvaluationResult for internal processing but return plain dict for compatibility
+                result = EvaluationResult(metrics=metrics, artifacts=artifacts)
+                return result.to_dict()  # Return plain dict for OpenEvolve compatibility
+
             # Backtest the strategy using evaluator's backtesting logic
             results = backtest_strategy(stock_data["Close"], signals)
 
@@ -566,6 +591,23 @@ def evaluate_stage1(program_path):
                     "error_type": "ValidationError",
                     "failure_stage": "stage1_validation",
                     "invalid_signals": str(unique_signals),
+                    "stdout": execution_info.get("stdout", ""),
+                    "stderr": execution_info.get("stderr", ""),
+                }
+                # Create EvaluationResult for internal processing but return plain dict for compatibility
+                result = EvaluationResult(metrics=metrics, artifacts=artifacts)
+                return result.to_dict()  # Return plain dict for OpenEvolve compatibility
+
+            # Validate signal length matches test data length  
+            if len(signals) != len(test_data):
+                print(f"Stage 1: Signal length mismatch: {len(signals)} vs {len(test_data)}")
+                metrics = {"runs_successfully": 0.0, "eval_time": float(eval_time)}
+                artifacts = {
+                    "error": f"Signal length mismatch: got {len(signals)}, expected {len(test_data)}",
+                    "error_type": "ValidationError",
+                    "failure_stage": "stage1_validation",
+                    "signal_length": len(signals),
+                    "expected_length": len(test_data),
                     "stdout": execution_info.get("stdout", ""),
                     "stderr": execution_info.get("stderr", ""),
                 }
