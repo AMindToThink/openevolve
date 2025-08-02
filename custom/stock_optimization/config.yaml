@@ -1,0 +1,97 @@
+# Configuration for stock optimization example
+max_iterations: 100
+checkpoint_interval: 10
+log_level: "INFO"
+random_seed: null
+
+# Evolution settings
+diff_based_evolution: true
+max_code_length: 15000
+
+# LLM configuration
+llm:
+  # Models for evolution - using Claude models as specified
+  models:
+    - name: "claude-3-5-haiku-20241022"
+      weight: 0.7
+    - name: "claude-sonnet-4-20250514"
+      weight: 0.3
+
+  # Models for LLM feedback if enabled
+  evaluator_models:
+    - name: "claude-3-5-haiku-20241022"
+      weight: 1.0
+
+  # API configuration
+  api_base: "https://api.anthropic.com/v1/"
+  api_key: null # Uses ANTHROPIC_API_KEY env variable
+
+  # Generation parameters
+  temperature: 0.8
+  top_p: 0.95
+  max_tokens: 4096
+
+  # Request parameters
+  timeout: 60
+  retries: 3
+  retry_delay: 5
+
+# Prompt configuration
+prompt:
+  system_message: "You are an expert quantitative finance researcher and algorithmic trading specialist. Your task is to evolve and improve stock trading strategies that maximize returns while minimizing risk (volatility). Focus on sophisticated techniques including: technical indicators (moving averages, RSI, MACD, Bollinger Bands), statistical arbitrage, mean reversion strategies, momentum strategies, risk management techniques, portfolio optimization, machine learning approaches for signal generation, and advanced statistical methods. Consider market microstructure, regime detection, volatility modeling, and risk-adjusted returns. The strategy will be evaluated on historical S&P 500 data with metrics including total returns, Sharpe ratio, maximum drawdown, and volatility. Aim for strategies that achieve high risk-adjusted returns with consistent performance across different market conditions."
+  
+  num_top_programs: 4
+  num_diverse_programs: 3
+  use_template_stochasticity: true
+  
+  # Advanced prompt features
+  include_artifacts: true
+  max_artifact_bytes: 30720 # 30KB
+  artifact_security_filter: true
+  
+  # Program complexity guidance
+  suggest_simplification_after_chars: 800
+  include_changes_under_chars: 150
+  concise_implementation_max_lines: 15
+  comprehensive_implementation_min_lines: 40
+
+# Database configuration  
+database:
+  population_size: 80
+  archive_size: 30
+  num_islands: 4
+  
+  # Island evolution parameters
+  migration_interval: 25
+  migration_rate: 0.15
+  
+  # Selection parameters
+  elite_selection_ratio: 0.25
+  exploration_ratio: 0.35
+  exploitation_ratio: 0.40
+  
+  # Feature space for stock strategies
+  feature_dimensions:
+    - "return_score"       # Risk-adjusted returns score
+    - "volatility_score"   # Low volatility score
+    - "sharpe_score"       # Sharpe ratio score
+    - "drawdown_score"     # Maximum drawdown score
+  feature_bins: 10
+    
+  diversity_reference_size: 20
+
+# Evaluator configuration
+evaluator:
+  timeout: 30
+  max_retries: 3
+  
+  # Cascade evaluation for efficiency
+  cascade_evaluation: true
+  cascade_thresholds: [0.3, 0.6]
+  
+  # Parallel evaluations
+  parallel_evaluations: 6
+  
+  # Disable LLM feedback to reduce costs
+  use_llm_feedback: false
+  llm_feedback_weight: 0.0
