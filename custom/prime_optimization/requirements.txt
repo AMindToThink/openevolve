@@ -1,0 +1,2 @@
+# No additional requirements beyond base OpenEvolve
+# The prime optimization example only uses Python standard library

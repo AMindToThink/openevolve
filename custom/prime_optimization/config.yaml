@@ -1,0 +1,96 @@
+# Configuration for prime number optimization example
+max_iterations: 150 # Reduced from 500
+checkpoint_interval: 15 # More frequent checkpoints for early stopping
+log_level: "INFO"
+random_seed: null # Allow randomization for better exploration
+
+# Evolution settings
+diff_based_evolution: true
+max_code_length: 10000 # Reduced from 15000
+
+# LLM configuration
+llm:
+  # Models for evolution - favor cheaper model primarily
+  models:
+    - name: "claude-3-5-haiku-20241022"
+      weight: 0.8 # Favor cheaper model
+    - name: "claude-sonnet-4-20250514"
+      weight: 0.2 # Use expensive model sparingly
+
+  # Models for LLM feedback if enabled
+  evaluator_models:
+    - name: "claude-3-5-haiku-20241022" # Use cheaper model for feedback
+      weight: 1.0
+
+  # API configuration
+  api_base: "https://api.anthropic.com/v1/"
+  api_key: null # Uses ANTHROPIC_API_KEY env variable
+
+  # Generation parameters - balanced for cost/performance
+  temperature: 0.7 # Reduced creativity to reduce need for retries
+  top_p: 0.95
+  max_tokens: 4096 # Reduced from 6144
+
+  # Request parameters
+  timeout: 60 # Reduced timeout
+  retries: 3 # Fewer retries
+  retry_delay: 5
+
+# Prompt configuration
+prompt:
+  system_message: "You are an expert programmer specializing in number theory, cryptography, and high-performance algorithm optimization. Your task is to improve a prime number finding algorithm that must find the largest possible prime within exactly 1 second. Focus on cutting-edge techniques: Miller-Rabin probabilistic tests, wheel factorization, segmented sieves, Montgomery arithmetic, trial division optimizations, precomputed prime tables, bit manipulation tricks, and parallel processing approaches. Consider mathematical optimizations like skipping multiples, using modular arithmetic, and leveraging CPU cache efficiency. The algorithm is scored on both prime magnitude and execution speed - aim for primes with 6+ digits while staying under 1 second."
+  
+  num_top_programs: 3 # Reduced examples to save tokens
+  num_diverse_programs: 2 # Reduced diversity examples
+  use_template_stochasticity: true
+  
+  # Advanced prompt features - reduced for cost
+  include_artifacts: true
+  max_artifact_bytes: 20480 # 20KB reduced from 30KB
+  artifact_security_filter: true
+  
+  # Program complexity guidance
+  suggest_simplification_after_chars: 600 # Encourage shorter programs
+  include_changes_under_chars: 100
+  concise_implementation_max_lines: 12
+  comprehensive_implementation_min_lines: 30
+
+# Database configuration  
+database:
+  # Smaller populations to reduce LLM calls
+  population_size: 60 # Reduced from 120
+  archive_size: 20 # Reduced from 40
+  num_islands: 3 # Reduced from 6 islands
+  
+  # Island evolution parameters
+  migration_interval: 40 # Less frequent migration
+  migration_rate: 0.1 # Reduced migration rate
+  
+  # Selection parameters - more exploitation, less exploration
+  elite_selection_ratio: 0.2
+  exploration_ratio: 0.25 # Reduced exploration to save LLM calls
+  exploitation_ratio: 0.65 # Increased exploitation
+  
+  # Simplified feature space to reduce complexity
+  feature_dimensions:
+    - "prime_size_score"      # Size of largest prime found
+    - "speed_score"           # Execution efficiency
+  feature_bins: 12 # Reduced granularity to save evaluations
+    
+  diversity_reference_size: 15 # Reduced reference set
+
+# Evaluator configuration
+evaluator:
+  timeout: 10 # Reduced timeout
+  max_retries: 3 # Fewer retries
+  
+  # More aggressive cascade filtering to reduce expensive evaluations
+  cascade_evaluation: true
+  cascade_thresholds: [0.5, 0.75] # Fewer stages, higher thresholds
+  
+  # Reduced parallelization
+  parallel_evaluations: 4 # Reduced from 8
+  
+  # Disable LLM feedback to save costs
+  use_llm_feedback: false
+  llm_feedback_weight: 0.0
